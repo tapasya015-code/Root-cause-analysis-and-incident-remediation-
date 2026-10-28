@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autonomous Rollback Agent</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    margin: 0;
+    padding: 16px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sub { color: #94a3b8; font-size: 0.9rem; margin-bottom: 16px; }
+  .card {
+    background: #1e293b;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .status { font-size: 1.1rem; font-weight: bold; }
+  .healthy { color: #4ade80; }
+  .degraded { color: #f87171; }
+  .metric { font-size: 2rem; font-weight: bold; margin: 8px 0; }
+  .label { color: #94a3b8; font-size: 0.85rem; }
+  button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    background: #3b82f6;
+    color: white;
+  }
+  button:active { opacity: 0.8; }
+  button.danger { background: #ef4444; }
+  #log {
+    font-family: monospace;
+    font-size: 0.85rem;
+    max-height: 240px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+  .log-entry { border-bottom: 1px solid #334155; padding: 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>Autonomous Rollback Agent</h1>
+<div class="sub">Monitors error rate after each deploy and rolls back automatically.</div>
+
+<div class="card">
+  <div class="label">Current version</div>
+  <div class="status" id="version">v1.0.0</div>
+  <div class="label" style="margin-top:12px">Service status</div>
+  <div class="status healthy" id="status">Healthy</div>
+  <div class="label" style="margin-top:12px">Error rate</div>
+  <div class="metric" id="errorRate">0.5%</div>
+</div>
+
+<div class="card">
+  <button id="deployBtn">Deploy v1.1.0 (with bug)</button>
+  <button id="resetBtn" style="background:#475569">Reset demo</button>
+</div>
+
+<div class="card">
+  <div class="label" style="margin-bottom:6px">Agent log</div>
+  <div id="log"></div>
+</div>
+
+<script>
+  const THRESHOLD = 5.0;        // rollback if error rate exceeds 5%
+  const STABLE_VERSION = "v1.0.0";
+  let currentVersion = STABLE_VERSION;
+  let previousVersion = STABLE_VERSION;
+  let errorRate = 0.5;
+  let deployedBug = false;
+  let monitorTimer = null;
+
+  const el = {
+    version: document.getElementById("version"),
+    status: document.getElementById("status"),
+    errorRate: document.getElementById("errorRate"),
+    log: document.getElementById("log"),
+    deployBtn: document.getElementById("deployBtn"),
+    resetBtn: document.getElementById("resetBtn"),
+  };
+
+  function timestamp() {
+    return new Date().toLocaleTimeString();
+  }
+
+  function logMsg(msg, cls = "") {
+    const div = document.createElement("div");
+    div.className = "log-entry " + cls;
+    div.textContent = `[${timestamp()}] ${msg}`;
+    el.log.prepend(div);
+  }
+
+  function render() {
+    el.version.textContent = currentVersion;
+    el.errorRate.textContent = errorRate.toFixed(1) + "%";
+    const bad = errorRate > THRESHOLD;
+    el.status.textContent = bad ? "Degraded" : "Healthy";
+    el.status.className = "status " + (bad ? "degraded" : "healthy");
+  }
+
+  // Simulated metrics: normal traffic is around 0.5%, buggy versions spike higher
+  function tickMetrics() {
+    const base = deployedBug ? 12 : 0.5;
+    const noise = (Math.random() - 0.5) * 0.6;
+    errorRate = Math.max(0, base + noise);
+    render();
+    checkForRollback();
+  }
+
+  // The "autonomous" part: detect the spike and act without a human
+  function checkForRollback() {
+    if (errorRate > THRESHOLD && currentVersion !== previousVersion) {
+      logMsg(`ALERT: error rate ${errorRate.toFixed(1)}% exceeds ${THRESHOLD}% threshold`, "degraded");
+      logMsg(`Autonomous action: rolling back ${currentVersion} → ${previousVersion}`);
+      currentVersion = previousVersion;
+      deployedBug = false;
+      setTimeout(() => {
+        logMsg(`Rollback complete. Service restored to ${currentVersion}`);
+      }, 1000);
+    }
+  }
+
+  el.deployBtn.addEventListener("click", () => {
+    previousVersion = currentVersion;
+    currentVersion = "v1.1.0";
+    deployedBug = true;
+    logMsg("Deployed v1.1.0 to production");
+    render();
+  });
+
+  el.resetBtn.addEventListener("click", () => {
+    currentVersion = STABLE_VERSION;
+    previousVersion = STABLE_VERSION;
+    deployedBug = false;
+    errorRate = 0.5;
+    el.log.innerHTML = "";
+    logMsg("Demo reset");
+    render();
+  });
+
+  logMsg("Monitoring started");
+  render();
+  monitorTimer = setInterval(tickMetrics, 1500);
+</script>
+
+</body>
+</html>
