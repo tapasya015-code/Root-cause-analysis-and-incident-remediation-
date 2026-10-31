@@ -17,6 +17,8 @@ An agent that watches error rates after each deployment and rolls back automatic
 4. Watch the error rate spike above 5%, the agent roll back to v1.0.0, and the log record each step.
 5. Tap **Reset demo** to run it again.
 
+The repository and initial demo were created on October 28, 2026. We misunderstood the event timing (times were listed in ET), and began preparing early. The presentation, README updates, and demo video were completed during RVAHack26 (October 30–31, 2026).
+
 ## Team
 - M.Tapasya: Frontend (dashboard)
 - S.Hansika Reddy: Detection logic
